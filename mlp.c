@@ -11,7 +11,7 @@
 #define H2  5       /* Number of neurons in the second layer*/
 #define H3  4       /* Number of neurons in the third layer */
 #define HL  3       /* Number of hidden layers */
-#define H   4       /* Number of layers including the out layer */
+#define H   4       /* Number of layers including the output layer */
 #define f   0       /* Type of activation function to be used (0 for logistic, 1 for tanh, 2 for relu) */
 #define n   0.005   /* Learning rate */
 #define a   1       /* Gradient for the activation functions*/
@@ -34,7 +34,7 @@ typedef struct Neuron_t
 {
     double w;
     double *weights;
-    //double *thetas;
+    //double theta;
     double output;
     double delta;
 }Neuron_t;
@@ -98,7 +98,7 @@ void encode_input(double x1, double x2, Input_t *input, int i)
     else if (pow((x1 - 0.5),2) + pow((x2 - 0.5),2) < 0.2 && x2 < 0.5)  categorize("C2", input, i);
     else if (pow((x1 + 0.5),2) + pow((x2 + 0.5),2) < 0.2 && x2 > -0.5) categorize("C1", input, i);
     else if (pow((x1 + 0.5),2) + pow((x2 + 0.5),2) < 0.2 && x2 < -0.5) categorize("C2", input, i);
-    else if (pow((x1 - 0.5),2) + pow((x2 + 0.5),2) < 0.2 && x2 > -0.5) categorize("C1", input, i);  
+    else if (pow((x1 - 0.5),2) + pow((x2 + 0.5),2) < 0.2 && x2 > -0.5) categorize("C1", input, i);
     else if (pow((x1 - 0.5),2) + pow((x2 + 0.5),2) < 0.2 && x2 < -0.5) categorize("C2", input, i);  
     else if (pow((x1 + 0.5),2) + pow((x2 - 0.5),2) < 0.2 && x2 > 0.5)  categorize("C1", input, i);  
     else if (pow((x1 + 0.5),2) + pow((x2 - 0.5),2) < 0.2 && x2 < 0.5)  categorize("C2", input, i);  
@@ -120,16 +120,15 @@ double activation_function(double sum)
 
 void forward_pass(Input_t x)
 {
-    double sum;
-
     for (int i = 0; i < H; i++)
     {
         if (i == 0)
         {
             for ( int j = 0; j < neuronsPerLayer[i]; j++)
             {
-                sum += network.layers[i].neurons[j].weights[0] * 1.0; // The bias input is always 1.
-                sum += network.layers[i].neurons[j].weights[1] * x.x1;
+                double sum;
+                sum += network.layers[i].neurons[j].weights[0] * 1.0;   // The bias input is always 1.
+                sum += network.layers[i].neurons[j].weights[1] * x.x1;  
                 sum += network.layers[i].neurons[j].weights[2] * x.x2;
 
                 network.layers[i].neurons[j].output = activation_function(sum);
@@ -138,9 +137,17 @@ void forward_pass(Input_t x)
         }
         else
         {
-            /* TODO
-                Calculate for the second and third hidden layers
-             */ 
+            for ( int j = 0; j < neuronsPerLayer[i]; j++)
+            {
+                double sum;
+                sum += network.layers[i].neurons[j].weights[0] * 1.0;
+                for (int k = 0; k < neuronsPerLayer[i-1]; k++)
+                {
+                    sum += network.layers[i-1].neurons[j].output * network.layers[i].neurons[j].weights[k];
+                }
+                network.layers[i].neurons[j].output = activation_function(sum);
+                printf("Hidden layer %d output: %lf \n", i+1,  network.layers[i].neurons[j].output);
+            }
         }
     }
 }
@@ -233,6 +240,7 @@ int main() {
 
     setup();
     initialize();
+    forward_pass(train_set[1]);
 
     return 0;
 }
