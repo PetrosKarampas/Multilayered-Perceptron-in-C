@@ -7,15 +7,15 @@
 #define d   2       /* Number of inputs */
 #define p   3       /* Number of outputs */
 #define K   3       /* Number of categories */
-#define H1  5       /* Number of neurons in the first layer */
+#define H1  3       /* Number of neurons in the first layer */
 #define H2  3       /* Number of neurons in the second layer*/
 #define H3  2       /* Number of neurons in the third layer */
 #define HL  3       /* Number of hidden layers */
 #define H   4       /* Number of layers including the output layer */
-#define f   1       /* Type of activation function to be used (0 for logistic, 1 for tanh, 2 for relu) */
+#define f   0       /* Type of activation function to be used (0 for logistic, 1 for tanh, 2 for relu) */
 #define n   0.005   /* Learning rate */
 #define a   1       /* Gradient for the activation functions*/
-#define B   300     /* Batch for gradient descent*/
+#define B   100     /* Batch for gradient descent*/
 
 #define EPOCHS 700  /* Number of epochs before termination */
 #define SET    4000 /* Number of inputs per set */
@@ -129,7 +129,7 @@ void forward_pass(Input_t x)
             //This for loop is for the first layer only hence the x1 and x2 inputs. 
             for ( int j = 0; j < neuronsPerLayer[i]; j++)
             {
-                double sum;
+                double sum = 0.0;
                 sum += network.layers[i].neuron[j].w[0] * 1.0;   // The bias input is always 1. and w[0] is always the bias of each neuron
                 sum += network.layers[i].neuron[j].w[1] * x.x1;  
                 sum += network.layers[i].neuron[j].w[2] * x.x2;
@@ -141,11 +141,12 @@ void forward_pass(Input_t x)
         {
             for ( int j = 0; j < neuronsPerLayer[i]; j++)
             {
-                double sum;
+                double sum = 0.0;
                 sum += network.layers[i].neuron[j].w[0] * 1.0; 
-                for (int k = 0; k < neuronsPerLayer[i-1]; k++)
+                for (int k = 0; k < neuronsPerLayer[i-1]; k++) //for each neuron of the previous layer
                 {
-                    sum += network.layers[i-1].neuron[j].output * network.layers[i].neuron[j].w[k];
+                    sum += network.layers[i-1].neuron[j].output * network.layers[i].neuron[j].w[k+1]; 
+                    printf("layer: %d, neuron: %d weight[%d] = %lf\n", i, j, k+1,network.layers[i].neuron[j].w[k+1]); //k+1 so that we can skip the w[0]; 
                 }
                 if(i == H-1) // Output layer
                 {
@@ -182,7 +183,7 @@ void backpropagation(Input_t x) // vector t={1, 0, 0} || {0, 1, 0} || {0, 0, 1} 
             for(int j = 0; j < p; j++)
             {
                 double y = network.layers[i].neuron[j].output;
-                network.layers[i].neuron[j].delta = y * (1 - y) * (y - x.category[j]);
+                network.layers[i].neuron[j].delta = y * (1 - y) * (x.category[j]- y);
                 network.layers[i].neuron[j].error_derivative[0] = network.layers[i].neuron[j].delta; //Bias 
                 
                 for (int l = 0; l < neuronsPerLayer[i-1]; l++)
@@ -285,7 +286,7 @@ void gradient_descent()
                 for (int l = 0; l <= k; l++)
                 {
                     network.layers[i_layer].neuron[i_neuron].w[l] -= n * error_derivatives[errors_i];
-                    printf(" new weight[%d]: %lf\n", errors_i, network.layers[i_layer].neuron[i_neuron].w[l]);
+                    //printf(" new weight[%d]: %lf\n", errors_i, network.layers[i_layer].neuron[i_neuron].w[l]);--------------------------
                     errors_i++;
                 }
             }
@@ -297,7 +298,7 @@ void gradient_descent()
 void print_network()
 {   
     int i,j,k;
-    int layer;
+    int layer, weights;
 
     for (i = 0; i < H; i++)
     {   
@@ -305,14 +306,14 @@ void print_network()
         for(j = 0; j < neuronsPerLayer[i]; j++)
         {
             printf("\t[NEURON %d]\n",j);
-            layer  = ( i == 0 ) ? 2 : neuronsPerLayer[i];
+            weights = (i == 0) ? 3 : neuronsPerLayer[i-1] + 1;
 
-            for(k = 0; k <= layer; k++)
+            for(k = 0; k < weights; k++)
                 printf("\t\t Weight[%d] = %lf\n",k,network.layers[i].neuron[j].w[k]);
 
             printf("\t\t ------- \n");
 
-            for(k = 0; k <= layer; k++)
+            for(k = 0; k < weights; k++)
                 printf("\t\t Error Derivative[%d] = %lf\n",k,network.layers[i].neuron[j].error_derivative[k]);
 
             printf("\t\t ------- \n");
@@ -348,16 +349,16 @@ void initialize()
         }
     }
 
-    //Allocate memory for the weights and initialize them
+    //Allocate memory for the error derivatives and the weights and initialize the weights
     int lastLayerNeurons;
-    for (int i = 0; i < H; i++)
+    for (int i = 0; i < H; i++) // for every layer including the output (when i = 3)
     {
-        for (int j = 0; j < neuronsPerLayer[i]; j++)
+        for (int j = 0; j < neuronsPerLayer[i]; j++) // for every neuron in every layer
         {
-            lastLayerNeurons = (i == 0) ? 2 + 1 : neuronsPerLayer[i-1] + 1; // The +1 is for the Bias in both occations
+            lastLayerNeurons = (i == 0) ? 3 : neuronsPerLayer[i-1] + 1; // The +1 is for the Bias 
 
-            network.layers[i].neuron[j].w = (double *) malloc(sizeof(double) * lastLayerNeurons);
-            network.layers[i].neuron[j].error_derivative = (double *) malloc(sizeof(double) * lastLayerNeurons); 
+            network.layers[i].neuron[j].w = malloc(sizeof(double) * lastLayerNeurons);
+            network.layers[i].neuron[j].error_derivative = malloc(sizeof(double) * lastLayerNeurons); 
             if(network.layers[i].neuron[j].w == NULL)
             {
                 printf("Memory allocation for the weights failed!");
