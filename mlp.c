@@ -7,9 +7,9 @@
 #define d   2       /* Number of inputs */
 #define p   3       /* Number of outputs */
 #define K   3       /* Number of categories */
-#define H1  7       /* Number of neurons in the first layer */
+#define H1  3       /* Number of neurons in the first layer */
 #define H2  4       /* Number of neurons in the second layer*/
-#define H3  5       /* Number of neurons in the third layer */
+#define H3  3       /* Number of neurons in the third layer */
 #define HL  3       /* Number of hidden layers */
 #define H   4       /* Number of layers including the output layer */
 #define f   0       /* Type of activation function to be used (0 for logistic, 1 for tanh, 2 for relu) */
@@ -158,15 +158,15 @@ void forward_pass(Input_t x)
         {
             for (int i = 0; i < neuronsPerLayer[h]; i++)
             {
+                u_i += network.layers[h].neuron[i].w[0];
+
                 for (int j = 1; j <= neuronsPerLayer[h-1]; j++)
                 {
-                    u_i += network.layers[h].neuron[i].w[0];
                     u_i += network.layers[h].neuron[i].w[j] * network.layers[h-1].neuron[j-1].output;
-
-                    network.layers[h].neuron[i].output = activation_function(u_i);
-
-                    u_i = 0.0;
                 }
+
+                network.layers[h].neuron[i].output = activation_function(u_i);
+                u_i = 0.0;
             }
         }
     }
