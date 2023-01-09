@@ -4,23 +4,24 @@
 #include <math.h>
 #include <time.h>
 
-#define d   2       /* Number of inputs */
-#define p   3       /* Number of outputs */
-#define K   3       /* Number of categories */
-#define H1  30      /* Number of neurons in the first layer */
-#define H2  30      /* Number of neurons in the second layer*/
-#define H3  30      /* Number of neurons in the third layer */
-#define HL  3       /* Number of hidden layers */
-#define H   4       /* Number of layers including the output layer */
-#define f   0       /* Type of activation function to be used (0 for logistic, 1 for tanh, 2 for relu) */
-#define n   0.005   /* Learning rate */
-#define a   1       /* Gradient for the activation functions*/
-#define B   40      /* Batch for gradient descent B=1 -> Stochastic , B=4000 -> Batch, B=500 -> mini-Batch*/
+#define d   2        /* Number of inputs */
+#define p   3        /* Number of outputs */
+#define K   3        /* Number of categories */
+#define H1  30        /* Number of neurons in the first layer */
+#define H2  30       /* Number of neurons in the second layer*/
+#define H3  30        /* Number of neurons in the third layer */
+#define HL  3        /* Number of hidden layers */
+#define H   4        /* Number of layers including the output layer */
+#define f   1        /* Type of activation function to be used (0 for logistic, 1 for tanh, 2 for relu) */
+#define n   0.01   /* Learning rate */
+#define B   40        /* Batch for gradient descent B=1 -> Stochastic , B=4000 -> Batch, B=400 -> mini-Batch */
+
 
 #define EPOCHS 1000  /* Number of epochs before termination */
 #define N      4000  /* Number of inputs per set */
 #define WEIGHTS_NUM  H1*(d+1) + H2*(H1+1) + H3*(H2+1) + p*(H3+1)  /* Total number of weights in the network */
-#define RANDOM_DOUBLE(A,B) ((double)rand()/(double)(RAND_MAX)) * (B-A) + A;
+#define RANDOM_DOUBLE(A,B) ((double)rand()/(double)(RAND_MAX)) * (B-A) + A; // Return a random double value between A and B
+#define ERROR_DIFFERENCE 0.000003 // Error threshold for the algorithm to stop
 
 
 // Neuron struct for each neuron in the network
@@ -140,8 +141,8 @@ double activation_function(double sum)
 {
     switch(f)
     {
-        case 0: return 1/ (double) (1+exp(-sum));                                       // Logistic 
-        case 1: return (exp(sum) - exp(-sum)) / (exp(sum) + exp(-sum)); // tanh
+        case 0: return 1/ (double) (1+exp(-sum));                               // Logistic 
+        case 1: return (exp(sum) - exp(-sum)) / (exp(sum) + exp(-sum));         // tanh
         case 2: return sum > 0.0 ? sum : 0.0;                                   // relu
     }
 }
@@ -291,7 +292,9 @@ void gradient_descent()
     int input_count = 0; // We use this counter to check whether an epoch has passed
     int p_d_counter = 0;
     double sum = 0.0;
-    double global_error = 0.0;
+
+    double previous_error = 0.0;
+    double current_error = 0.0;
 
     FILE *training_errors = fopen("train_errors.txt", "w+");
     fprintf(training_errors, "%s,%s\n", "Error", "Epoch");
@@ -368,20 +371,15 @@ void gradient_descent()
                 {
                     sum += pow(train_set[i].category[j] - network.layers[HL].neuron[j].output, 2);
                 }
-
                 sum /= 2.0;
-
             }
-            global_error = sum;
-            input_count = 0;
-            if(global_error <= 0.07 && epoch >= 700)
-            {
-                printf("Error threshhold passed!\nStopped at epoch %d\n", epoch);
-                epoch = EPOCHS;
-            }
-            fprintf(training_errors, "%lf, %d\n", sum, epoch+1);
-            sum = 0.0;
+            previous_error = current_error;
+            
+            fprintf(training_errors, "%lf, %d\n", sum, epoch + 1);
+            
             epoch++;
+            input_count = 0;
+            sum = 0.0;
         }
     }
     printf("---------------Training Done--------------\n");
@@ -469,12 +467,11 @@ void setup()
     fclose(test);
 }
 
-void test_generalization_integrity()
+void test_generalization_capability()
 {
     double max = -1;
     int winner = 0;
     int correct = 0;
-    int incorrect = 0;
     int category_1 = 0;
     int category_2 = 0;
     int category_3 = 0;
@@ -487,7 +484,6 @@ void test_generalization_integrity()
     fprintf(correct_guesses, "%s, %s\n", "X1", "X2");
     fprintf(wrong_guesses, "%s, %s\n", "X1", "X2");
 
-    
 
     for (int i = 0; i < N; i++)
     {
@@ -500,8 +496,6 @@ void test_generalization_integrity()
                 winner = h;
             }
         }
-
-        max = -1;
 
         if (winner == 0 && test_set[i].category[0] == 1)
         {
@@ -521,32 +515,29 @@ void test_generalization_integrity()
         else
         {
             fprintf(wrong_guesses, "%.5lf,%.5lf\n",test_set[i].x1, test_set[i].x2);
-            incorrect++;
         }
+
+        max = -1;
     }
-
-    error_per_epoch = fopen("error_per_epoch.txt", "w+");
-    fprintf(error_per_epoch, "%s,%s", "Error", "Test_Input");
-
 
     error = (1.0 - (category_1 + category_2 + category_3)/ (double ) N) * 100.0;
 
-    printf("C1: %d guessed correctly out of %d\n", category_1, test_c1);
-    printf("C2: %d guessed correctly out of %d\n", category_2, test_c2);
-    printf("C3: %d guessed correctly out of %d\n", category_3, test_c3);
-    printf("Incorrect guesses: %d\n", incorrect);
+    printf("C1: %d guessed correctly\n", category_1);
+    printf("C2: %d guessed correctly\n", category_2);
+    printf("C3: %d guessed correctly\n", category_3);
     printf("Error percentage: %.2lf%c\n", error, '%');
     printf("Accuracy: %.2lf%c\n", 100-error, '%');
 }
+
 
 int main() {
 
     setup();
     initialize();
     
-    gradient_descent();
-    test_generalization_integrity();  
+    gradient_descent(); // train the network using gradient descent
+
+    test_generalization_capability(); // Use the testing set to check the generalization capabilities of the network
 
     return 0;
 }
-
